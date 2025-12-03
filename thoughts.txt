@@ -33,7 +33,7 @@ update examples do
     age > ?  
     height > ?
     
-  values [ 1, 2 ]
+  values 1, 2
   
 insertAll examples do
   age := ?
@@ -43,16 +43,59 @@ insertAll examples do
     [ [ 1, 2 ]
     , [ 3, 4 ]
     ]
+    
+delete examples where age > 5
   
 create examples do
   age: int? dynamic
-  life: int foreign(lifes, id)
+  life: int foreign(lifes, id) unique
   id: int primary
   
-  id, life, age: primary
-  life: foreign(lifes, id)
+  id, life: primary
+  life, age: foreign(lifes, id, age)
   
 select * from 
-  examples e leftJoin other o on e.id == o.example
+  (examples e leftJoin other o on e.id == o.example)
+    innerJoin lives as l on l.id == o.life
   
-select age, name from examples, other
+select age as hello, apple as name, from examples, other
+  
+exec 
+  """
+  select age, min(count) as myCount, name from
+    examples 
+    
+    where 
+      (age > ?) || (height < 2)
+
+    groupBy age, weight, min(age)
+    sortByAsc id, weight
+    sortByDesc id, weight
+  """
+  [2]
+  
+This isn't better than SQL. We face similar problems -- because many things aren't
+functions, but keywords intended to separate expressions. And because parentheses do
+double-duty as precedence and call syntax.
+
+The truth is that SQL is more like an Assembly language. Better ways of writing assembly still involve writing assembly. And it's still just as painful to integrate the assembly with the rest of the application, particularly if there's poor support for the integration. And the truth is that SQL is about _specifying file layout_. That's all it's about! And based on the layout, we have queries and standard ways of inserting data, instead of thinking about reading and writing specific bytes. And to that extent, it's nice, but it's _only_ language that's _only_ useful for the purpose of interacting with those bytes.
+  Yes, only useful for bytes. For retrieving bytes! But perfectly useful for integrating with the rest of the application, or quickly building useful queries and data structures for the application, or managing migrations. Thus, with SQL as an assembly language, what we want is _not_ to write SQL, since it's too low-level for an application, but to write code that auto-generates useful SQL commands for the purposes that we actually need in our application. This is particularly true because our application does _not_ have the capacity to understand the database, or how joins work, or anything like that -- to our application, anything that isn't part of the language is actually a _runtime_ construct, and thus, something that can't be part of the type system.
+  Thus, writing SQL is largely useless on its own. Just like it would be to write assembly without tools that make it easy to integrate assembly with, say, Haskell, or C -- luckily, C compiles to assembly, so it works out well; but Purescript doesn't compile to SQL. The fundamental compatibility is much worse, and thus, the need for tooling is all the greater.
+  
+Writing the schema is fundamental, and also simple:
+
+```
+table examples = do
+  name: int primary
+  age: unique int? 
+  parentId: int foreign(parents, id)
+
+  primary(name, age)
+  foreign(parentId, parents, id)
+  unique(name, age)
+```
+
+We can say everything we need to say about a gien table, in a format that's reasonably easy
+to parse, while specifying all the keys we want. With just this schema (and a few others), we can typecheck schemas -- verifying that foreign ids actually refer to real columns; we can have a compilation of all schemas to check for consistency. We can auto-generate a 'create' statement from this, if we want. This doesn't yet help with migrations, but having the current schema is a good start toward that end.
+  
+  
