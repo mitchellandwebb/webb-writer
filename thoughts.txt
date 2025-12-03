@@ -1,0 +1,58 @@
+
+
+
+insert examples do
+  age := '12'
+  life := 27
+  
+insert examples do
+  age := ?0
+  life := ?1
+  
+  values ['12', 27]
+
+insert examples do
+  age := ?name
+  life := ?weight
+  
+  values { name: '12', weight: 27 }
+
+insert examples do
+  age := ?
+  life := ?
+  
+  values [ '12', 27 ]
+  
+update examples do
+  age := ?
+  life := ?
+  
+  values [ '12', 27 ]
+
+  where
+    age > ?  
+    height > ?
+    
+  values [ 1, 2 ]
+  
+insertAll examples do
+  age := ?
+  life := ?
+  
+  values
+    [ [ 1, 2 ]
+    , [ 3, 4 ]
+    ]
+  
+create examples do
+  age: int? dynamic
+  life: int foreign(lifes, id)
+  id: int primary
+  
+  id, life, age: primary
+  life: foreign(lifes, id)
+  
+select * from 
+  examples e leftJoin other o on e.id == o.example
+  
+select age, name from examples, other
