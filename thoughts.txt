@@ -152,4 +152,57 @@ allow a _second_ declaration of a schema (a table) with an updated version, such
 During compilation, references will be needed -- for some types to reference types in other files. But since this is relational, circular imports will be completely necessary. Is that possible? Yes. Because a first pass to compile non-relationships is possible ... so it should be fine. Probably.
 
 
+But the problem with manually defining the type is that it's _not_ sufficient for insertion into the database if the columns are limited. So instead, we need the base type of the table, to generate a default record, and a default insert/update/delete methods.
+
+But why is so much work needed in the first place? Because the runtime description of the tables becomes only a runtime description of the types that exist in the database. But what we want is a standard base layer. To declare the types of the database, and therefore have the types of the application that consume it.
+  The type declaration of a table thus declares:
+
+  (A) The exact Create table statement(s) that we need.
+  (B) A default constructor for a new record -- just the data.
+  (C) The static type of the bare data that is stored in the table.
+  (D) Ways to insert and update using the bare record data and the primary key, as long
+      as it's given a way to execute a SQL string.
+  
+Notably, however, it doesn't properly declare queries. It can't. It doesn't know what queries we find relevant. To declare queries, we actually have to write them. Some of these can be basic:
+
+```
+type Human = table humans do
+  age: int
+  id: int primary
+  parentId: int foreign(humans, id)
+
+  primary(age, name)
+  foreign(parentId, humans, id)
+
+query all = Human where age > 0
+query allChildren = Human where age < 15
+```
+
+This will become functions that can be executed to query a lazy-loaded list of human data. But it's not just that data that we want. But although we could try to do joins, we don't really want to: doing joins misaligns the data so that it's not convenient to modify the data. Keeping the data in easily-modifiable forms is for the best.
+  Instead, to get related data, it's better to query directly. For example:
+
+```
+query children = for Human h many Human c where h.id = c.parentId
+```
+
+The above compiles the query to turn a single human record into a query for all the related
+humans that are its children. Do we miss out on querying directly by id? Yes. And that's weird, unless we address it. We can actually make it so that all queries -- relationship or not -- are just functions that produce a type. This simplifies everything and provides the building blocks needed.
+
+```
+query getById = for string i one Human h where h.id = i
+```
+
+From this, we specify the type of i and h, and declare how the query is constructed -- and how many results we expect to extract. No type inference is needed if all types are required as a result of the query, where we infer the Table in this way. This syntax specifies declaratively what each simple query is, without ever needing to dip into complex queries. In so doing, we can produce the SQL queries in minimal syntax AND generate the function definitions AND type-check the queries, to produce functions that can fetch the data from the HumanTable type that we construct.
+  So we can define the table to yield a Type, and use that Type to yield queries that produce one, or many, versions of the type. It will be stateless, but ways to insert one, or multiple, of the given type will be produced just by the type itself. Nothing ever needs to be written, since these methods are inherent to the type itself.
+  
+But there are still some interesting concerns, given that we are ultimately trying to write declarative stuff against a parameterized-query executor -- an `execute(sql, params)` function. The first concern is file organization. Given namespace clashes, it seems necessary for us to stipulate that there is only one table per file. Makes sense, since for auto-generated functions, we expect the names to be the same and do _not_ want to have to manage similar names in one space; likewise, we'd like to specify the module name clearly, which is clearest if one module is created per database file.
+  But because tables are related, it's necessary to import other files. Files may even be circularly dependent on each other -- and for this to be true, we will need to be able to allow tables to depend on each other in limited ways -- perhaps via multiple passes in some way, so that foreign keys are intelligible on the second pass, since we now understand the other table in totality, so that foreign keys can now be processed. And likewise for things like attributes that are in addition to the type -- primary, foreign key, unique. These only make sense to process in light of the existing field types. So field types should be checked first; afterward, it might make sense to handle the typing of things like queries as well.
+  Finally, we do have to define runtime components for our code -- primarily to support Queries, since things after that already exist in Prelude and Aff. We might define a Db.Prelude to be imported automatically in the generated files, to support the functions that are defined.
+  
+But that defines the entirety of what we're trying to achieve. To define tables and queries that operate on single tables, to avoid the mismatch between SQL joins.
+
+So that's ... fairly clear. Weird constructs aren't needed. So we can define things in fairly limited fashion during tokenizing and parsing.
+
+
+
 
