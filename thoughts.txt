@@ -201,8 +201,49 @@ But there are still some interesting concerns, given that we are ultimately tryi
   
 But that defines the entirety of what we're trying to achieve. To define tables and queries that operate on single tables, to avoid the mismatch between SQL joins.
 
-So that's ... fairly clear. Weird constructs aren't needed. So we can define things in fairly limited fashion during tokenizing and parsing.
+So that's ... fairly clear. Weird constructs aren't needed. So we can define things in fairly limited fashion during tokenizing and parsing. 
 
+But ... what about the WebApp case where we want to fetch lots of data at once in a single request? Well, then nothing. It would all be handled on the server-side, close to the DB, to avoid multiple requests. Any ORM built on top of this would be auto-generated as well, instead of manually scripted. SqlScript does something simple and sane -- it just gives a way to query from each table without worrying about joins, which don't match well to what we're doing, while keeping types aligned.
 
+However, we would conceivably want to do auto-joining in one query without needing to write any application code at all. For example, both the following queries might be desired -- the first for a flat query, and the second for a nested graph navigation query:
+
+```
+-- All children.
+type Child = select p.name as parent, c.id, c.name, c.age from 
+  Human p innerJoin Human c on c.parentId = h.id
+  
+  where
+  age < 15
+  
+-- We can walk the graph using joins, just like in SQL.
+type GrandChild = select gp.name as grandParent, gc.id, gc.name, gc.age from
+  Human gp 
+    leftJoin (Human c 
+      leftJoin Human gc 
+      on c.id = gc.parentId) 
+    on gp.id = c.parentId
+    
+-- Existing queries can also be used as part of left joins.
+type GrandChild = select gp.name as grandParent, gc.name, gc.age from
+  Human gp 
+    leftJoin Child { p: gp } c
+    leftJoin Child { p: c } gc
+  
+-- The human type is extended with the collection of children, for each human. This
+-- is done entirely with sql -- because the `Human h` is injected into the join, and
+-- then used as a basis to _only_ have non-null humans, and non-null children as an 
+-- array of data.
+type HumanWithChildren = extend Human h do
+  children: query(Child { p: h })
+  grandchildren: query(GrandChild { gp: h })
+```
+
+Note that the select types can be used to perform joins, since they describe relations between tables and how fields are extracted from the relation. Thus, we can specify how our existing table is extracting relationship data from existing relationship queries. But when mergin relationship queries into arrays, the problem is that certain joins may keep _all_ rows where data was null. That isn't useful, because a relationship is one where _both sides_ exist as we parse, yet simultaneously, a leftJoin is needed to retain data that has _no_ matches in the join. Ultimately, this isn't something we can truly enforce. Extending a table with relationships simply means that the table Human will be left-joined against the query, and all matches will be included in the array. We can't be any more specific than that; the compiler cannot take responsibility for more than that. All the extension will do is perform the left join, and for each top-level Human, combine all records where the human's primary key is the same into one record that has an array. It reuses the query, but does some minor rewrites so that the table's PrimaryKey can be used to match the results against the current table.
+  Correlated subqueries don't work well, because the subquery has to be re-computed per-row. It's far more predictable in performance to just do the joins, which don't need to do nested for loops.
+ 
+Need the tables to behave in STRICT mode. Need to enable FOREIGN keys.
+
+But we don't need the parser. The interesting bit about something like WatermelonDb -- and any runtime, dynamic db system where the fields are declared at runtime -- is that they are useful because they are extensible, and they are extensible because they exist as a shared runtime that anyone can access and utilize for more. But any custom language has a harder problem -- no one can extend it unless the custom language is hugely complex, or unless the AST is precisely specified and exposed. But ... we typically don't need that; most of the time, languages don't contribute anything by being that way, particularly if they are limited. That's the limitation of SQL itself -- it can't be extended because it's limited, and having its AST is useless because there's nothing to do with it. My custom language for SQL would be largely similar -- it would only be useful to the extent the AST would be exposed, and useful for being compiled. But the language itself contributes _nothing useful_. So why parse at all? Just build the desired parts of the AST directly, in Purescript, and generate code from it. There's no point to parsing at all!
+  Because there's a BUILD phase, not a compile phase -- we need an initial compilation of the schema into SQL statements and Purescript types and functions, written to specific Purescript files, and then compile _that_ into the full Purescript project. And this is because we want compile-time artifacts, not runtime artifacts, but the compile-time runtime is _still shared_ -- still running in NodeJs/Purescript. We just need more toolkits for writing Purescript files with ease, modules and imports and all.
 
 

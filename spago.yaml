@@ -1,0 +1,29 @@
+package:
+  name: webb-writer
+  dependencies:
+    - console
+    - effect
+    - prelude
+    - profunctor-lenses
+    - spec 
+    - spec-node 
+    - spec-discovery
+    - monad-loops
+    - debug
+    - aff
+    - lcg
+    - quickcheck
+    - random
+    - record
+    - refs
+    - tuples
+    - webb-test
+  test:
+    main: Test.Main
+    dependencies: []
+workspace:
+  packageSet:
+    registry: 63.9.0
+  extraPackages:
+    spec-discovery: 8.2.0
+    webb-test: 0.0.1

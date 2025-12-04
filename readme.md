@@ -1,0 +1,1 @@
+A purescript project providing utilities for quickly writing purescript files.
