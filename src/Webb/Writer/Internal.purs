@@ -118,8 +118,8 @@ newline = do write "\n"
 equals :: forall m. Monad m => WriterM m
 equals = token "="
 
-putAlias :: forall m . Monad m => String -> WriterM m 
-putAlias name = do 
+typeEquals :: forall m . Monad m => String -> WriterM m 
+typeEquals name = do 
   token "type" *> token name *> equals
 
 -- { k1 : v1
@@ -206,6 +206,9 @@ putAdo = do token "ado"
 moduleWhere :: forall m. Monad m => String -> WriterM m
 moduleWhere m = do
   token "module" *> token m *> token "where"
+  
+putImport :: forall m. Monad m => String -> WriterM m
+putImport s = token "import" *> token s
   
 string :: forall m. Monad m => String -> WriterM m
 string s = do 

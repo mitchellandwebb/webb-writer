@@ -81,16 +81,16 @@ forEach_ t prog = void $ forEach t prog
 
 before :: forall a b m. Monad m => (a -> m Unit) -> ForEach m a b Unit
 before f = do
-  mmodify_ $ _ { before = unsafeCoerce f }
+  mmodify_ $ _ { before = Just $ unsafeCoerce f }
 
 each :: forall a b m. Monad m => (a -> m b) -> ForEach m a b Unit
 each f = do
-  mmodify_ $ _ { each = unsafeCoerce f }
+  mmodify_ $ _ { each = Just $ unsafeCoerce f }
 
 inBetween :: forall a b m. Monad m => (a -> m Unit) -> ForEach m a b Unit
 inBetween f = do
-  mmodify_ $ _ { between = unsafeCoerce f }
+  mmodify_ $ _ { between = Just $ unsafeCoerce f }
 
 after :: forall a b m. Monad m => (a -> m Unit) -> ForEach m a b Unit
 after f = do
-  mmodify_ $ _ { after = unsafeCoerce f }
+  mmodify_ $ _ { after = Just $ unsafeCoerce f }
