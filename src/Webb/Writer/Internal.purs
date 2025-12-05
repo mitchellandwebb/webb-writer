@@ -27,6 +27,14 @@ type Position =
 type WriterM' m a = StateT Position m a
 type WriterM m = WriterM' m Unit
 
+default :: Position
+default = 
+  { indentSpaces: 0
+  , line: 0
+  , column: 0
+  , output: []
+  }
+
 execWriterM :: forall m a. Monad m => Position -> WriterM' m a -> m Position
 execWriterM pos prog = do execStateT prog pos
 
