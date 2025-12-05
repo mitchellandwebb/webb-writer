@@ -131,3 +131,15 @@ putAdo = do token "ado"
 moduleWhere :: forall m. Monad m => String -> WriterM m
 moduleWhere m = do
   token "module" *> token m *> token "where"
+  
+string :: forall m. Monad m => String -> WriterM m
+string s = do 
+  token "\""
+  token s
+  token "\""
+
+multiLine :: forall m. Monad m => String -> WriterM m
+multiLine s = do 
+  token "\"\"\"" 
+  token s 
+  token "\"\"\""
