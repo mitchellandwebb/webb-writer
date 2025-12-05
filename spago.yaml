@@ -18,6 +18,7 @@ package:
     - refs
     - tuples
     - webb-test
+    - webb-refer
   test:
     main: Test.Main
     dependencies: []
@@ -27,3 +28,4 @@ workspace:
   extraPackages:
     spec-discovery: 8.2.0
     webb-test: 0.0.1
+    webb-refer: 0.0.1

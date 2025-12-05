@@ -21,6 +21,7 @@
             "spec-discovery",
             "spec-node",
             "tuples",
+            "webb-refer",
             "webb-test"
           ],
           "build_plan": [
@@ -104,6 +105,7 @@
             "typelevel-prelude",
             "unfoldable",
             "unsafe-coerce",
+            "webb-refer",
             "webb-test"
           ]
         },
@@ -647,6 +649,7 @@
     },
     "extra_packages": {
       "spec-discovery": "8.2.0",
+      "webb-refer": "0.0.1",
       "webb-test": "0.0.1"
     }
   },
@@ -1771,6 +1774,19 @@
       "version": "6.0.0",
       "integrity": "sha256-IqIYW4Vkevn8sI+6aUwRGvd87tVL36BBeOr0cGAE7t0=",
       "dependencies": []
+    },
+    "webb-refer": {
+      "type": "registry",
+      "version": "0.0.1",
+      "integrity": "sha256-Irfg3MnwDKouC3IxisiJZvDo6ze4ACxpwXoMiyQvpNA=",
+      "dependencies": [
+        "effect",
+        "prelude",
+        "profunctor-lenses",
+        "refs",
+        "transformers",
+        "tuples"
+      ]
     },
     "webb-test": {
       "type": "registry",
