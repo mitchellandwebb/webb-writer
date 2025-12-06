@@ -2,6 +2,7 @@ module Webb.Writer.File where
 
 import Prelude
 
+import Control.Monad.Error.Class (catchError)
 import Data.Array as A
 import Data.Foldable (for_)
 import Data.Maybe (Maybe(..), isJust)
@@ -14,7 +15,7 @@ import Node.FS (FileDescriptor, FileFlags(..))
 import Node.FS.Aff (fdAppend, fdClose, readdir, stat)
 import Node.FS.Aff as Fs
 import Node.FS.Perms (permsReadWrite)
-import Node.FS.Stats (isFile)
+import Node.FS.Stats (isDirectory, isFile)
 import Node.Path (basename)
 import Node.Path as Path
 import Node.Process (cwd)
@@ -42,15 +43,34 @@ resetDir :: forall m. MonadAff m => String -> m Unit
 resetDir relPath = liftAff do
   path <- cwd # liftEffect
   let dirPath = Path.concat [path, relPath]
-  Fs.rmdir dirPath
+  whenM (existsDir relPath) do
+    Fs.rm' dirPath { force: true, recursive: true, maxRetries: 2, retryDelay: 100 }
   Fs.mkdir' dirPath { recursive: true, mode: permsReadWrite }
   
-getFile :: forall m. MonadAff m => String -> m File
-getFile relPath = do
+-- Does directory exist, relatively?
+existsDir :: forall m. MonadAff m => String -> m Boolean
+existsDir relPath = liftAff do 
   path <- cwd # liftEffect
-  let filePath = Path.concat [path, relPath]
+  let dirPath = Path.concat [path, relPath]
+  catchError (do 
+    stats <- Fs.stat dirPath
+    pure $ isDirectory stats
+  ) (\_ -> 
+    pure false
+  )
+  
+getFile :: forall m. MonadAff m => String -> String -> m File
+getFile dirPath filePath = do
+  path <- cwd # liftEffect
+  let fullPath = Path.concat [path, dirPath, filePath]
   ref <- newShowRef Nothing
-  pure $ F { path: filePath, fd: ref }
+  pure $ F { path: fullPath, fd: ref }
+  
+appendPath :: String -> String -> String
+appendPath a b = Path.concat [a, b]
+
+concatPath :: Array String -> String
+concatPath a = Path.concat a
 
 newtype File = F 
   { path :: String
@@ -80,7 +100,23 @@ write (F s) str = do
   void $ fdAppend fd buf # liftAff
   where
   buffer :: Effect Buffer
-  buffer = fromString str UTF8
+  buffer = fromString str UTF16LE
+
+read :: forall m. MonadAff m => 
+  File -> m String
+read (F s) = liftAff do Fs.readTextFile UTF16LE s.path
+
+countDir :: forall m. MonadAff m => 
+  String -> m Int
+countDir rel = liftAff do 
+  path <- cwd # liftEffect
+  let dirPath = concatPath [path, rel]
+  catchError (do
+    files <- Fs.readdir dirPath
+    pure $ A.length files
+  ) (\_ -> do
+    pure 0
+  )
   
 -- Close the file.
 close :: forall m. MonadAff m => File -> m Unit

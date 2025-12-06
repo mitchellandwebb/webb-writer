@@ -6,6 +6,8 @@ node_modules/
 output/
 output-es/
 generated-docs/
+test-data/
+testData/
 .psc-package/
 .psc*
 .purs*
