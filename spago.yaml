@@ -27,6 +27,14 @@ package:
   test:
     main: Test.Main
     dependencies: []
+    
+  publish:
+    version: 0.0.1
+    license: BSD-3-Clause
+    location:
+      githubOwner: mitchellandwebb
+      githubRepo: webb-writer
+
 workspace:
   packageSet:
     registry: 63.9.0
