@@ -19,6 +19,7 @@ package:
     - unsafe-coerce: ">=6.0.0 <7.0.0"
     - webb-monad: ">=0.0.2 <0.0.3"
     - webb-refer: ">=0.0.2 <0.0.3"
+    - unicode
   test:
     main: Test.Main
     dependencies:

@@ -4,10 +4,17 @@ import Prelude
 
 import Control.Monad.State (StateT, evalStateT, execStateT, lift, runStateT)
 import Data.Array as A
+import Data.Array as Array
+import Data.CodePoint.Unicode as Unicode
+import Data.Foldable (for_)
+import Data.Identity (Identity)
 import Data.Map (Map)
 import Data.Map as M
-import Data.String (Pattern(..), Replacement(..))
+import Data.Maybe (Maybe, fromMaybe)
+import Data.Newtype (unwrap)
+import Data.String (CodePoint, Pattern(..), Replacement(..))
 import Data.String as Str
+import Data.String as String
 import Data.Tuple (Tuple(..))
 import Webb.Monad.Prelude (timesRepeat_)
 import Webb.State.Prelude (mmodify_, mread, mreads, mwrite)
@@ -23,6 +30,7 @@ type St =
   , line :: Int
   , column :: Int
   , output :: Array String
+  , lastWrite :: String
   }
 
 type Position = 
@@ -40,6 +48,7 @@ default =
   , line: 0
   , column: 0
   , output: []
+  , lastWrite: ""
   }
 
 defaultPos :: Position
@@ -48,6 +57,12 @@ defaultPos =
   , line: 0
   , column: 0
   }
+  
+-- Run a writer to a string -- good for building a string with ease.
+runToString :: WriterM Identity -> String
+runToString prog = let 
+  state = unwrap $ execWriterM default prog :: St
+  in String.joinWith "" state.output
 
 execWriterM :: forall m a. Monad m => St -> WriterM' m a -> m St
 execWriterM pos prog = do execStateT prog pos
@@ -69,14 +84,37 @@ getOutput = do mreads $ _.output >>> Str.joinWith ""
 clearOutput :: forall m. Monad m => WriterM m
 clearOutput = do mmodify_ $ _ { output = [] }
 
+lastCodePoint :: forall m. Monad m => WriterM' m (Maybe CodePoint)
+lastCodePoint = do
+  st <- mread
+  let points = String.toCodePointArray st.lastWrite
+  pure $ Array.last points
+
+-- Write a string. Ensure it is a separate token -- if the previous character
+-- was _not_ whitespace, add a space so that it's a separate word.
 token :: forall m. Monad m => String -> WriterM m
 token t = do 
-  whenM needsSpace do write " "
+  whenM needsExtraSpace do write " "
   write t
   where
-  needsSpace = do
-    s <- mread
-    pure $ s.column > s.indentSpaces
+  -- Do we need to print a space beforehand? We only need it if
+  -- the last character written was NOT a space.
+  needsExtraSpace :: WriterM' m Boolean
+  needsExtraSpace = do
+    mpoint <- lastCodePoint
+    pure $ fromMaybe false do
+      point <- mpoint
+      pure $ not (Unicode.isSpace point)
+
+-- Write multiple tokens to the stream as an array.
+tokens :: forall m. Monad m => Array String -> WriterM m
+tokens arr = do for_ arr token
+
+word :: forall m. Monad m => String -> WriterM m
+word = token
+
+words :: forall m. Monad m => Array String -> WriterM m
+words arr = do for_ arr word
 
 -- Add an indent to the current indent, requiring all subsequent writes to
 -- be at that indent or later. Restore the current indent once the inner program
@@ -89,8 +127,10 @@ withIndent n prog = do
   let final = new { indentSpaces = old.indentSpaces }
   mwrite final 
 
--- Write a string to the output. Newlines will be converted to changes to the 
--- line and column state, while tabs will be converted to two-space inserts.
+indent :: forall m. Monad m => Int -> WriterM m -> WriterM m
+indent = withIndent
+
+-- Write a string. Respect the current indent, even as newlines occur in the string.
 write :: forall m. Monad m => String -> WriterM m
 write str = do
   when (str /= "") do
@@ -122,6 +162,7 @@ write str = do
     mmodify_ \s -> s { 
       output = s.output <> appendData
     , column = s.column + appendLen
+    , lastWrite = String.joinWith "" appendData
     }
     
   getIndentPrefix :: WriterM' m String
@@ -131,11 +172,13 @@ write str = do
         prefix = Str.joinWith "" (A.replicate len " ")
     pure prefix
     
+  addNewLine :: WriterM m
   addNewLine = do
     mmodify_ \s -> s {
       output = A.snoc s.output "\n"
     , column = 0
     , line = s.line + 1
+    , lastWrite = "\n"
     }
     
   spaces i = Str.joinWith "" $ A.replicate i " "

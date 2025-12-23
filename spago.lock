@@ -50,6 +50,7 @@
             {
               "tuples": ">=7.0.0 <8.0.0"
             },
+            "unicode",
             {
               "unsafe-coerce": ">=6.0.0 <7.0.0"
             },
@@ -120,6 +121,7 @@
             "type-equality",
             "typelevel-prelude",
             "unfoldable",
+            "unicode",
             "unsafe-coerce",
             "webb-monad",
             "webb-refer"
@@ -1809,6 +1811,16 @@
         "partial",
         "prelude",
         "tuples"
+      ]
+    },
+    "unicode": {
+      "type": "registry",
+      "version": "6.0.0",
+      "integrity": "sha256-QJnTVZpmihEAUiMeYrfkusVoziJWp2hJsgi9bMQLue8=",
+      "dependencies": [
+        "foldable-traversable",
+        "maybe",
+        "strings"
       ]
     },
     "unsafe-coerce": {

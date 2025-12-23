@@ -72,6 +72,16 @@ spec = describe "Testing internals of writing" do
     , column = 3 -- We were indented
     }
     
+  run "token adds a space if the previous character was a non-space" do
+    I.tokens ["a", "b", "c"]
+    outputIs "a b c"
+
+    posIs $ I.defaultPos {
+      indentSpaces = 0
+    , line = 0
+    , column = 5
+    }
+    
   run "token adds a space after start of line" do
     I.write "a"
     I.token "b"
