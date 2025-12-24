@@ -2,8 +2,6 @@ module Test.InternalSpec where
 
 import Test.Prelude
 
-import Data.Map as M
-import Data.Tuple.Nested ((/\))
 import Effect.Aff (Aff)
 import Webb.Writer.Internal as I
 import Webb.Writer.String (trimMargin)
@@ -118,58 +116,10 @@ spec = describe "Testing internals of writing" do
     I.newline
     outputIs $ "\n\n"
       
-  run "can put a map as a record" do
-    let map = M.fromFoldable 
-          [ "name" /\ "String"
-          , "age" /\ "Int"
-          ]
-    I.putRecord map
-    
-    outputIs $ trimMargin """
-      |{ age : Int
-      |, name : String
-      |}
-      """
-      
-  run "writing a type" do
-    I.putType "hello" ["a", "b"]
-    outputIs "hello a b"
-    
-  run "module declaration" do
-    I.moduleWhere "Test.InternalSpec"
-    outputIs "module Test.InternalSpec where"
-
-  run "import" do
-    I.putImport "Test.InternalSpec as P"
-    outputIs "import Test.InternalSpec as P"
-    
-  run "string literal escapes newline" do
-    I.string "hello\nthere"
-    outputIs "\"hello\\nthere\""
-    
-  run "multi-line string literal retains newline" do
-    I.multiLine "hello\nthere"
-    outputIs $ "\"\"\"hello\nthere\"\"\""
-  
-  run "various 'equals' output" do
-    I.equals *> new
-    I.typeEquals "hello" *> new
-    I.bodyEquals "hello" ["a", "b"] *> new
-    I.newtypeEquals "hello" ["a", "b"] *> new
-    I.dataEquals "hello" ["a", "b"]
-    
-    outputIs $ trimMargin """
-      |=
-      |type hello =
-      |hello a b =
-      |newtype hello a b =
-      |data hello a b =
-      """
-    
   where
   run msg prog = 
     let p = (do 
-          void $ I.execWriterM I.default do void prog
+          void $ I.execSWriterT I.default do void prog
         ) :: Aff Unit
     in it msg p
     
@@ -180,6 +130,4 @@ spec = describe "Testing internals of writing" do
   posIs expected = do
     pos <- I.getPosition
     pos === expected
-    
-  new = I.newline
     
